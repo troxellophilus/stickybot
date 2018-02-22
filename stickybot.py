@@ -20,7 +20,8 @@ logging.getLogger().setLevel(logging.INFO)
 
 def _check_age(created_utc, max_age):
     created = datetime.datetime.fromtimestamp(created_utc)
-    age = (created - datetime.datetime.utcnow()).total_seconds() / 3600
+    age = (datetime.datetime.utcnow() - created).total_seconds() / 3600
+    print(age)
     return age < max_age
 
 
