@@ -13,3 +13,8 @@ Create a config.json with options for Sticky Bot.
 ```
 
 Build and run with Docker.
+
+```bash
+$ docker build -t stickybot/latest .
+$ docker run stickybot/latest
+```

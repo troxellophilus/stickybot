@@ -1,3 +1,9 @@
+"""StickyBot for Reddit.
+
+Moderator tool for Reddit; sticky Reddit threads with titles matching
+configurable patterns.
+"""
+
 import datetime
 import json
 import logging
@@ -24,6 +30,11 @@ def _check_pattern(pattern, title):
 
 
 class StickyBot(object):
+    """Context object for running bot actions.
+
+    Args:
+        subreddit (str): Name of the subreddit to run against.
+    """
 
     def __init__(self, subreddit):
         self.subreddit_name = subreddit
@@ -64,6 +75,21 @@ class StickyBot(object):
             yield submission
 
     def run_pattern(self, pattern, min_score):
+        """Run stickybot for a pattern.
+
+        Sticky and set suggested sort to new a recent submission matching the
+        pattern with the highest total activity score.
+
+        No action is taken if:
+            * No recent posts match the pattern.
+            * The highest activity score submission does not meet the min_score
+              threshold.
+            * A recent post matching the pattern is already stickied.
+
+        Args:
+            pattern (str): Regex pattern to match against titles.
+            min_score (int): Min. activity score threshold.
+        """
         logging.info(f"Running StickyBot for pattern {pattern}.")
         if self._check_stickied(pattern):
             logging.info(f"A recent sticky already exists for pattern.")
@@ -84,11 +110,21 @@ class StickyBot(object):
         logging.info(f"Stickied submission {best.fullname}")
 
     def run(self, patterns, min_score=5):
+        """Run stickybot against a list of patterns.
+
+        Loop through a sequence of regex patterns, executing run_pattern
+        against each pattern.
+
+        Args:
+            patterns (iter(str)): List of regex patterns to match against.
+            min_score (int): Min. activity score threshold for stickying.
+        """
         for pattern in patterns:
             self.run_pattern(pattern, min_score)
 
 
 def main():
+    """Create and run a StickyBot according to a config file."""
     root = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(root, 'config.json')) as conf_fo:
         conf = json.load(conf_fo)
