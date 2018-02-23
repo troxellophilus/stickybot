@@ -7,8 +7,18 @@ Create a config.json with options for Sticky Bot.
 ```json
 {
     "subreddit": "subreddit-name",
-    "patterns": ["[A-z]List of Patterns"],
-    "min_score": 5
+    "stickies": [
+        {
+            "pattern": "[A-z]Regex Pattern.+",
+            "min_score": 1,
+            "max_age": 8
+        },
+        {
+            "pattern": "[A-z]Another Pattern.+",
+            "min_score": 1,
+            "max_age": 16
+        }
+    ]
 }
 ```
 
