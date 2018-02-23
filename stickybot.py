@@ -52,20 +52,24 @@ class StickyBot(object):
         self.stickied = tuple(stickies)
         self.submissions = tuple(self.subreddit.new(limit=100))
 
-    def _check_stickied(self, pattern):
+    def _check_stickied(self, pattern, max_age):
         for sticky in self.stickied:
-            if _check_pattern(pattern, sticky.title) and _check_age(sticky.created_utc, 12):
-                return True
+            if _check_pattern(pattern, sticky.title):
+                if _check_age(sticky.created_utc, max_age):
+                    return True
+                else:
+                    logging.info(f"Unstickying stale sticky {sticky.fullname}.")
+                    sticky.mod.sticky(False)
         return False
 
-    def _matching_submissions(self, pattern):
+    def _matching_submissions(self, pattern, max_age):
         for submission in self.submissions:
             if not _check_pattern(pattern, submission.title):
                 logging.debug(f"Skipping submission {submission.fullname}: didn't match pattern.")
                 continue  # Didn't match, ignore.
 
-            if not _check_age(submission.created_utc, 12):
-                logging.debug(f"Skipping submission {submission.fullname}: older than 12 hours.")
+            if not _check_age(submission.created_utc, max_age):
+                logging.debug(f"Skipping submission {submission.fullname}: older than {max_age} hours.")
                 continue  # Too old, ignore.
 
             if submission.stickied:
@@ -74,7 +78,7 @@ class StickyBot(object):
 
             yield submission
 
-    def run_pattern(self, pattern, min_score):
+    def run(self, pattern, min_score=5, max_age=12):
         """Run stickybot for a pattern.
 
         Sticky and set suggested sort to new a recent submission matching the
@@ -89,13 +93,14 @@ class StickyBot(object):
         Args:
             pattern (str): Regex pattern to match against titles.
             min_score (int): Min. activity score threshold.
+            max_age (int): Max. post age in hours for sticky/unsticky.
         """
         logging.info(f"Running StickyBot for pattern {pattern}.")
-        if self._check_stickied(pattern):
+        if self._check_stickied(pattern, max_age):
             logging.info(f"A recent sticky already exists for pattern.")
             return  # Already have a recent stickied post with that pattern.
 
-        submissions = list(self._matching_submissions(pattern))
+        submissions = list(self._matching_submissions(pattern, max_age))
         if not submissions:
             logging.info(f"No submissions found matching pattern")
             return
@@ -109,19 +114,6 @@ class StickyBot(object):
         best.mod.suggested_sort('new')
         logging.info(f"Stickied submission {best.fullname}")
 
-    def run(self, patterns, min_score=5):
-        """Run stickybot against a list of patterns.
-
-        Loop through a sequence of regex patterns, executing run_pattern
-        against each pattern.
-
-        Args:
-            patterns (iter(str)): List of regex patterns to match against.
-            min_score (int): Min. activity score threshold for stickying.
-        """
-        for pattern in patterns:
-            self.run_pattern(pattern, min_score)
-
 
 def main():
     """Create and run a StickyBot according to a config file."""
@@ -130,7 +122,8 @@ def main():
         conf = json.load(conf_fo)
     bot = StickyBot(conf['subreddit'])
     logging.info(f"Running StickyBot against /r/{bot.subreddit_name}.")
-    bot.run(conf['patterns'], conf.get('min_score', 5))
+    for sticky in conf['stickies']:
+        bot.run(sticky['pattern'], sticky.get('min_score', 5), sticky.get('max_age', 12))
 
 
 if __name__ == '__main__':
