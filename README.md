@@ -11,7 +11,8 @@ Create a config.json with options for Sticky Bot.
         {
             "pattern": "[A-z]Regex Pattern.+",
             "min_score": 1,
-            "max_age": 8
+            "max_age": 8,
+            "comment": "Optional comment to post and distinguish after stickying."
         },
         {
             "pattern": "[A-z]Another Pattern.+",

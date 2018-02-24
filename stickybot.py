@@ -19,14 +19,14 @@ logging.getLogger().setLevel(logging.INFO)
 
 
 def _check_age(created_utc, max_age):
-    created = datetime.datetime.fromtimestamp(created_utc)
+    created = datetime.datetime.utcfromtimestamp(created_utc)
     age = (datetime.datetime.utcnow() - created).total_seconds() / 3600
     return age < max_age
 
 
 def _check_pattern(pattern, title):
     pat = re.compile(pattern.lower())
-    return bool(pat.match(title.lower()))
+    return bool(pat.search(title.lower()))
 
 
 class StickyBot(object):
@@ -78,7 +78,7 @@ class StickyBot(object):
 
             yield submission
 
-    def run(self, pattern, min_score=5, max_age=12):
+    def run(self, pattern, min_score=5, max_age=12, comment=None):
         """Run stickybot for a pattern.
 
         Sticky and set suggested sort to new a recent submission matching the
@@ -112,6 +112,9 @@ class StickyBot(object):
 
         best.mod.sticky()
         best.mod.suggested_sort('new')
+        if comment:
+            reply = best.reply(comment)
+            reply.mod.distinguish()
         logging.info(f"Stickied submission {best.fullname}")
 
 
@@ -123,7 +126,7 @@ def main():
     bot = StickyBot(conf['subreddit'])
     logging.info(f"Running StickyBot against /r/{bot.subreddit_name}.")
     for sticky in conf['stickies']:
-        bot.run(sticky['pattern'], sticky.get('min_score', 5), sticky.get('max_age', 12))
+        bot.run(sticky['pattern'], sticky.get('min_score', 5), sticky.get('max_age', 12), sticky.get('comment'))
 
 
 if __name__ == '__main__':
