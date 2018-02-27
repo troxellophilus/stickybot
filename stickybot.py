@@ -72,6 +72,11 @@ class StickyBot(object):
                 logging.debug(f"Skipping submission {submission.fullname}: older than {max_age} hours.")
                 continue  # Too old, ignore.
 
+            if len(self.stickied) == 2:
+                if submission.created_utc < self.stickied[1].created_utc:
+                    logging.debug(f"Skipping submission {submission.fullname}: older than existing bottom sticky.")
+                    continue
+
             if submission.stickied:
                 logging.info(f"Submission {submission.fullname} already stickied.")
                 break  # Already stickied; abort.
@@ -102,7 +107,7 @@ class StickyBot(object):
 
         submissions = list(self._matching_submissions(pattern, max_age))
         if not submissions:
-            logging.info(f"No submissions found matching pattern")
+            logging.info(f"No new submissions found matching pattern.")
             return
 
         best = max(submissions, key=lambda s: s.score + s.num_comments)
