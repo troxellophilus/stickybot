@@ -88,7 +88,7 @@ class StickyBot(object):
                 raise ValueError(f"Sorts must be one of {supported_sorts}")
             sort_idx = min(seconds_since_created // sort_wait, len(sorts) - 1)
             new_sort = sorts[sort_idx]
-            if new_sort != sticky.mod.suggested_sort:
+            if new_sort != sticky.suggested_sort:
                 logging.info(f"Setting suggested sort '{new_sort}' for sticky '{sticky.fullname}'.")
                 sticky.mod.suggested_sort(new_sort)
         if seconds_since_created > max_age:
