@@ -99,7 +99,7 @@ class StickyBot(object):
         comments = self.reddit.user.me().comments.new(limit=100)
         return any(c.submission.fullname == submission.fullname for c in comments)
 
-    def run(self, pattern, min_score=5, max_age=12, comment=None, sorts=('new',), sort_wait_mins=60):
+    def run(self, pattern, min_score=5, max_age=12, comment=None, sorts=('new',), sort_wait=60):
         """Run stickybot for a pattern.
 
         Sticky and set suggested sort to new a recent submission matching the
@@ -114,16 +114,16 @@ class StickyBot(object):
         Args:
             pattern (str): Regex pattern to match against titles.
             min_score (int): Min. activity score threshold.
-            max_age (int): Max. post age in hours for sticky/unsticky.
-            comment (str): ...
-            sort (str or list[str]): ...
-            sort_wait_mins (int): ...
+            max_age (int): Max. post age in seconds for sticky/unsticky.
+            comment (str): Optional comment to post after stickying.
+            sort (list[str]): Sorts to set at sort_weight intervals.
+            sort_wait (int): Time in seconds between each sort.
         """
         logging.info(f"Running StickyBot for pattern {pattern}.")
         existing = self._check_stickied(pattern, max_age)
         if existing:
             logging.info(f"A recent sticky already exists for pattern. Lifecycling existing sticky...")
-            self._lifecycle(existing, max_age, sorts, sort_wait_mins)
+            self._lifecycle(existing, max_age, sorts, sort_wait)
             return  # Already have a recent stickied post with that pattern.
 
         submissions = list(self._matching_submissions(pattern, max_age))
@@ -153,7 +153,7 @@ def main():
     bot = StickyBot(conf['subreddit'])
     logging.info(f"Running StickyBot against /r/{bot.subreddit_name}.")
     for sticky in conf['stickies']:
-        bot.run(sticky['pattern'], sticky.get('min_score', 5), sticky.get('max_age', 12), sticky.get('comment'))
+        bot.run(sticky['pattern'], sticky.get('min_score', 5), sticky.get('max_age', 12), sticky.get('comment'), sticky.get('sorts', ('new',)), sticky.get('sort_wait', 3600))
 
 
 if __name__ == '__main__':
