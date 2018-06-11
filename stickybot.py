@@ -4,7 +4,7 @@ Moderator tool for Reddit; sticky Reddit threads with titles matching
 configurable patterns.
 """
 
-import datetime
+from datetime import datetime
 import json
 import logging
 import os
@@ -18,10 +18,8 @@ import requests
 logging.getLogger().setLevel(logging.INFO)
 
 
-def _check_age(created_utc, max_age):
-    created = datetime.datetime.utcfromtimestamp(created_utc)
-    age = (datetime.datetime.utcnow() - created).total_seconds() / 3600
-    return age < max_age
+def _seconds_since(start):
+    return int((datetime.utcnow() - start).total_seconds())
 
 
 def _check_pattern(pattern, title):
@@ -55,12 +53,8 @@ class StickyBot(object):
     def _check_stickied(self, pattern, max_age):
         for sticky in self.stickied:
             if _check_pattern(pattern, sticky.title):
-                if _check_age(sticky.created_utc, max_age):
-                    return True
-                else:
-                    logging.info(f"Unstickying stale sticky {sticky.fullname}.")
-                    sticky.mod.sticky(False)
-        return False
+                return sticky
+        return None
 
     def _matching_submissions(self, pattern, max_age):
         for submission in self.submissions:
@@ -68,7 +62,8 @@ class StickyBot(object):
                 logging.debug(f"Skipping submission {submission.fullname}: didn't match pattern.")
                 continue  # Didn't match, ignore.
 
-            if not _check_age(submission.created_utc, max_age):
+            created = datetime.utcfromtimestamp(submission.created_utc)
+            if _seconds_since(created) > max_age:
                 logging.debug(f"Skipping submission {submission.fullname}: older than {max_age} hours.")
                 continue  # Too old, ignore.
 
@@ -83,7 +78,28 @@ class StickyBot(object):
 
             yield submission
 
-    def run(self, pattern, min_score=5, max_age=12, comment=None):
+    def _lifecycle(self, sticky, max_age, sorts, sort_wait):
+        created = datetime.utcfromtimestamp(sticky.created_utc)
+        seconds_since_created = _seconds_since(created)
+        if sorts:
+            supported_sorts = ('new', 'best', 'top', 'controversial', 'old', 'q&a')
+            if not all(s in supported_sorts for s in sorts):
+                logging.error(f"Sorts must be one of {supported_sorts}")
+                raise ValueError(f"Sorts must be one of {supported_sorts}")
+            sort_idx = min(seconds_since_created // sort_wait, len(sorts) - 1)
+            new_sort = sorts[sort_idx]
+            if new_sort != sticky.mod.suggested_sort:
+                logging.info(f"Setting suggested sort '{new_sort}' for sticky '{sticky.fullname}'.")
+                sticky.mod.suggested_sort(new_sort)
+        if seconds_since_created > max_age:
+            logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
+            sticky.mod.sticky(False)
+
+    def _check_commented(self, submission):
+        comments = self.reddit.user.me().comments.new(limit=100)
+        return any(c.submission.fullname == submission.fullname for c in comments)
+
+    def run(self, pattern, min_score=5, max_age=12, comment=None, sorts=('new',), sort_wait_mins=60):
         """Run stickybot for a pattern.
 
         Sticky and set suggested sort to new a recent submission matching the
@@ -99,10 +115,15 @@ class StickyBot(object):
             pattern (str): Regex pattern to match against titles.
             min_score (int): Min. activity score threshold.
             max_age (int): Max. post age in hours for sticky/unsticky.
+            comment (str): ...
+            sort (str or list[str]): ...
+            sort_wait_mins (int): ...
         """
         logging.info(f"Running StickyBot for pattern {pattern}.")
-        if self._check_stickied(pattern, max_age):
-            logging.info(f"A recent sticky already exists for pattern.")
+        existing = self._check_stickied(pattern, max_age)
+        if existing:
+            logging.info(f"A recent sticky already exists for pattern. Lifecycling existing sticky...")
+            self._lifecycle(existing, max_age, sorts, sort_wait_mins)
             return  # Already have a recent stickied post with that pattern.
 
         submissions = list(self._matching_submissions(pattern, max_age))
@@ -116,8 +137,9 @@ class StickyBot(object):
             return  # Don't sticky, let it marinate.
 
         best.mod.sticky()
-        best.mod.suggested_sort('new')
-        if comment:
+        best.mod.suggested_sort(sorts[0])
+
+        if comment and not self._check_commented(best):
             reply = best.reply(comment)
             reply.mod.distinguish()
         logging.info(f"Stickied submission {best.fullname}")
