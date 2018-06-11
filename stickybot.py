@@ -87,7 +87,7 @@ class StickyBot(object):
                 logging.error(f"Sorts must be one of {supported_sorts}")
                 raise ValueError(f"Sorts must be one of {supported_sorts}")
             sort_idx = min(seconds_since_created // sort_wait, len(sorts) - 1)
-            current_sort = sticky.suggested_sort()
+            current_sort = sticky.comment_sort
             new_sort = sorts[sort_idx]
             if new_sort != current_sort:
                 logging.info(f"Setting suggested sort from '{current_sort}' to '{new_sort}' for sticky '{sticky.fullname}'.")
