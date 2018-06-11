@@ -78,6 +78,13 @@ class StickyBot(object):
 
             yield submission
 
+    def _get_comment(self, submission):
+        comments = self.reddit.user.me().comments.new(limit=100)
+        relevant = list(filter(lambda c: c.submission.fullname == submission.fullname, comments))
+        if relevant:
+            return relevant[0]
+        return None
+
     def _lifecycle(self, sticky, max_age, sorts, sort_wait):
         created = datetime.utcfromtimestamp(sticky.created_utc)
         seconds_since_created = _seconds_since(created)
@@ -87,18 +94,17 @@ class StickyBot(object):
                 logging.error(f"Sorts must be one of {supported_sorts}")
                 raise ValueError(f"Sorts must be one of {supported_sorts}")
             sort_idx = min(seconds_since_created // sort_wait, len(sorts) - 1)
-            current_sort = sticky.comment_sort
+            current_sort = sticky.suggested_sort or sticky.comment_sort
             new_sort = sorts[sort_idx]
             if new_sort != current_sort:
                 logging.info(f"Setting suggested sort from '{current_sort}' to '{new_sort}' for sticky '{sticky.fullname}'.")
                 sticky.mod.suggested_sort(new_sort)
+                body = f"{sticky.body}  \n^(*Suggested sort updated at {datetime.utcnow().isoformat()}Z.*)"
+                comment = self._get_comment(sticky)
+                comment.edit(body)
         if seconds_since_created > max_age:
             logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
             sticky.mod.sticky(False)
-
-    def _check_commented(self, submission):
-        comments = self.reddit.user.me().comments.new(limit=100)
-        return any(c.submission.fullname == submission.fullname for c in comments)
 
     def run(self, pattern, min_score=5, max_age=12, comment=None, sorts=('new',), sort_wait=60):
         """Run stickybot for a pattern.
@@ -140,7 +146,7 @@ class StickyBot(object):
         best.mod.sticky()
         best.mod.suggested_sort(sorts[0])
 
-        if comment and not self._check_commented(best):
+        if comment and not self._get_comment(best):
             reply = best.reply(comment)
             reply.mod.distinguish()
         logging.info(f"Stickied submission {best.fullname}")
