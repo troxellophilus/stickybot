@@ -100,7 +100,10 @@ class StickyBot(object):
                 logging.info(f"Setting suggested sort from '{current_sort}' to '{new_sort}' for sticky '{sticky.fullname}'.")
                 sticky.mod.suggested_sort(new_sort)
                 comment = self._get_comment(sticky)
-                body = f"{comment.body.rsplit('  \n', 1)[0]}  \n^(*Suggested sort updated at {datetime.utcnow().isoformat(sep=' ', timespec='seconds')}Z.*)"
+                body = "{body}  \n^(*Sort updated at {time}Z.*)".format(
+                    body=comment.body.rsplit(r'  \n', 1)[0],
+                    time=datetime.utcnow().isoformat(sep=' ', timespec='seconds')
+                )
                 comment.edit(body)
         if seconds_since_created > max_age:
             logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
