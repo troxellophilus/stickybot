@@ -101,7 +101,7 @@ class StickyBot(object):
                 sticky.mod.suggested_sort(new_sort)
                 comment = self._get_comment(sticky)
                 body = "{body}  \n^(*Sort updated at {time}Z.*)".format(
-                    body=comment.body.rsplit(r'  \n', 1)[0],
+                    body=comment.body.rsplit('  \n', 1)[0],
                     time=datetime.utcnow().isoformat(sep=' ', timespec='seconds')
                 )
                 comment.edit(body)
