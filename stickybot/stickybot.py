@@ -45,10 +45,10 @@ class Rule(object):
     pattern: str
     min_score: int = 5
     min_karma: int = 50
-    max_age_hrs: float = 30
+    max_age_hrs: float = 0.5
     remove_age_hrs: float = 12
-    comment: str
-    sort_list: List[str] = ['new', 'best']
+    comment: str = None
+    sort_list: List[str] = ('new', 'best')
     sort_update_age_hrs: float = 4
 
     def sticky_filter(self, submission: praw.models.Submission):
@@ -66,7 +66,9 @@ class Rule(object):
         if _hours_since(created) > self.max_age_hrs:
             return False
 
-        user_karma = submission.author  # TODO: Filter by user karma.
+        user_karma = submission.author.comment_karma
+        if user_karma < self.min_karma:
+            return False
 
         return True
 
@@ -74,7 +76,7 @@ class Rule(object):
         created = datetime.utcfromtimestamp(sticky.created_utc)
         hours_since_created = _hours_since(created)
         if self.sort_list:
-            sort_idx = min(hours_since_created // self.sort_update_age_hrs, len(self.sort_list) - 1)
+            sort_idx = min(int(hours_since_created // self.sort_update_age_hrs), len(self.sort_list) - 1)
             current_sort = sticky.suggested_sort or sticky.comment_sort
             new_sort = self.sort_list[sort_idx]
             if new_sort != current_sort:
@@ -109,7 +111,7 @@ def main():
 
     reddit = praw.Reddit('stickybot')
     subreddit = reddit.subreddit(conf['subreddit'])
-    logging.info(f"Running StickyBot against /r/{subreddit.name}.")
+    logging.info(f"Running StickyBot against /r/{subreddit.display_name}.")
 
     stickies = get_stickies(subreddit)
     submissions = tuple(subreddit.new(limit=100))
