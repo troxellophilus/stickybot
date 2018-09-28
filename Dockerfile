@@ -12,4 +12,4 @@ COPY stickybot /src/
 
 WORKDIR /stickybot
 
-ENTRYPOINT [ "python", "stickybot/stickybot.py" ]
+ENTRYPOINT [ "python", "/src/stickybot/stickybot.py" ]
