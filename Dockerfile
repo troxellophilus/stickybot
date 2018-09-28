@@ -1,9 +1,15 @@
-FROM python:3.6-slim-stretch
+FROM python:3.7-slim-stretch
 
-RUN pip install "praw>=5.3.0,<5.4" "requests>=2.18.4,<2.19"
+RUN pip install pipenv
 
-COPY stickybot.py praw.ini config.json /root
+COPY Pipfile Pipfile.lock /src/
 
-WORKDIR /root
+WORKDIR /src
+
+RUN pipenv install --system --deploy
+
+COPY stickybot /src/
+
+WORKDIR /stickybot
 
 ENTRYPOINT [ "python", "stickybot.py" ]
