@@ -51,14 +51,13 @@ class Rule(object):
     sort_list: List[str] = ['new', 'best']
     sort_update_age_hrs: float = 4
 
-    def filter_sticky(self, submission: praw.models.Submission):
+    def sticky_filter(self, submission: praw.models.Submission):
         pat = re.compile(self.pattern.lower())
         if not pat.search(submission.title.lower()):
             return False
-
         return True
 
-    def filter_submission(self, submission: praw.models.Submission):
+    def submission_filter(self, submission: praw.models.Submission):
         pat = re.compile(self.pattern.lower())
         if not pat.search(submission.title.lower()):
             return False
@@ -67,7 +66,7 @@ class Rule(object):
         if _hours_since(created) > self.max_age_hrs:
             return False
 
-        user_karma = submission.author
+        user_karma = submission.author  # TODO: Filter by user karma.
 
         return True
 
@@ -118,16 +117,20 @@ def main():
     rules = [Rule(**r) for r in conf['rules']]
     for rule in rules:
         logging.info(f"Executing rule '{rule.label}'...")
-        existing = filter(rule.filter_sticky, stickies)
+
+        # Check current stickies for existing sticky matching rule.
+        existing = filter(rule.sticky_filter, stickies)
         if not all(rule.lifecycle(s) for s in existing):
             logging.info(f"Sticky already exists for rule '{rule.label}'.")
             continue
 
-        eligible = list(filter(rule.filter_submission, submissions))
+        # Identify eligible submissions according to this rule.
+        eligible = list(filter(rule.submission_filter, submissions))
         if not eligible:
             logging.info(f"No eligible submissions found for rule.")
             continue
 
+        # Select the "best" submission from the eligible submissions.
         best = max(eligible, key=lambda s: s.score + s.num_comments)
         if best.score + best.num_comments < rule.min_score:
             logging.info(f"Best submission {best.fullname} for rule didn't meet combined score requirements, with score {best.score + best.num_comments}.")
@@ -136,9 +139,11 @@ def main():
         best.mod.sticky()
         best.mod.suggested_sort(rule.sort_list[0])
 
+        # Post comment to the submission if specified.
         if rule.comment and not _get_comment(reddit, best):
             reply = best.reply(rule.comment)
             reply.mod.distinguish()
+
         logging.info(f"Stickied submission {best.fullname}.")
 
 
