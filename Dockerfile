@@ -8,7 +8,7 @@ WORKDIR /src
 
 RUN pipenv install --system --deploy
 
-COPY stickybot /src/
+COPY stickybot /src/stickybot/
 
 WORKDIR /stickybot
 
