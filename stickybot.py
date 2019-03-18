@@ -128,7 +128,7 @@ def main():
 
     rules = [Rule(**r) for r in conf['rules']]
     for rule in rules:
-        logging.info(f"Executing rule '{rule}'...")
+        logging.info(f"Executing rule '{rule.label}'...")
 
         # Check current stickies for existing sticky matching rule.
         existing = filter(rule.check, stickies)
