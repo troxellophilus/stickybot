@@ -40,6 +40,7 @@ def get_stickies(subreddit):
 
 @dataclass
 class Rule(object):
+    """Rule for lifecycling existing stickies and stickying new submissions."""
 
     label: str
     pattern: str
@@ -51,15 +52,14 @@ class Rule(object):
     sort_list: List[str] = ('new', 'best')
     sort_update_age_hrs: float = 4
 
-    def sticky_filter(self, submission: praw.models.Submission):
+    def check(self, submission: praw.models.Submission):
+        """Check if a submission should be handled by this Rule."""
         pat = re.compile(self.pattern.lower())
-        if not pat.search(submission.title.lower()):
-            return False
-        return True
+        return bool(pat.search(submission.title.lower()))
 
-    def submission_filter(self, submission: praw.models.Submission):
-        pat = re.compile(self.pattern.lower())
-        if not pat.search(submission.title.lower()):
+    def apply(self, submission: praw.models.Submission):
+        """Determine if a submission is eligible to be stickied for this Rule."""
+        if not self.check(submission):
             return False
 
         created = datetime.utcfromtimestamp(submission.created_utc)
@@ -68,13 +68,19 @@ class Rule(object):
 
         user_karma = submission.author.comment_karma
         if user_karma < self.min_karma:
+            submission.subreddit.message("[StickyBot] User Comment Karma Below Threshold", f"[This submission]({submission.permalink}) is eligible for sticky according to rule '{self.label}' but the user's comment karma is below the rule's threshold of {self.min_karma}. Please approve and manually sticky the submission if it is permissible.")
+            submission.mod.remove()
+            comment = submission.reply("Your submission is pending moderator approval due to your comment karma being below the threshold for this type of submission. Message the moderators if you have any questions.")
+            comment.mod.distinguish()
             return False
 
         return True
 
     def lifecycle(self, sticky: praw.models.Submission):
+        """Update an existing sticky according to this Rule."""
         created = datetime.utcfromtimestamp(sticky.created_utc)
         hours_since_created = _hours_since(created)
+
         if self.sort_list:
             sort_idx = min(int(hours_since_created // self.sort_update_age_hrs), len(self.sort_list) - 1)
             current_sort = sticky.suggested_sort or sticky.comment_sort
@@ -82,10 +88,12 @@ class Rule(object):
             if new_sort != current_sort:
                 logging.info(f"Setting suggested sort from '{current_sort}' to '{new_sort}' for sticky '{sticky.fullname}'.")
                 sticky.mod.suggested_sort(new_sort)
+
         if hours_since_created > self.remove_age_hrs:
             logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
             sticky.mod.sticky(False)
             return True
+
         return False
 
 
@@ -118,16 +126,16 @@ def main():
 
     rules = [Rule(**r) for r in conf['rules']]
     for rule in rules:
-        logging.info(f"Executing rule '{rule.label}'...")
+        logging.info(f"Executing rule '{rule}'...")
 
         # Check current stickies for existing sticky matching rule.
-        existing = filter(rule.sticky_filter, stickies)
-        if not all(rule.lifecycle(s) for s in existing):
+        existing = filter(rule.check, stickies)
+        if not all(map(rule.lifecycle, existing)):
             logging.info(f"Sticky already exists for rule '{rule.label}'.")
             continue
 
         # Identify eligible submissions according to this rule.
-        eligible = list(filter(rule.submission_filter, submissions))
+        eligible = list(filter(rule.apply, submissions))
         if not eligible:
             logging.info(f"No eligible submissions found for rule.")
             continue
