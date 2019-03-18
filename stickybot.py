@@ -18,7 +18,7 @@ import prawcore.exceptions
 import requests
 
 
-logging.getLogger().setLevel(logging.INFO)
+__version__ = '1.1.0'
 
 
 def _hours_since(start):
@@ -112,6 +112,8 @@ def _parse_args():
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
+
     args = _parse_args()
 
     with open(args.config) as conf_fo:

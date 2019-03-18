@@ -2,14 +2,14 @@ FROM python:3.7-slim-stretch
 
 RUN pip install pipenv
 
-COPY Pipfile Pipfile.lock /src/
+COPY Pipfile Pipfile.lock /usr/src/stickybot/
 
-WORKDIR /src
+WORKDIR /usr/src/stickybot
 
 RUN pipenv install --system --deploy
 
-COPY stickybot /src/stickybot/
+COPY stickybot.py /usr/src/stickybot/
 
 WORKDIR /stickybot
 
-ENTRYPOINT [ "python", "/src/stickybot/stickybot.py" ]
+ENTRYPOINT [ "python", "/usr/src/stickybot/stickybot.py" ]

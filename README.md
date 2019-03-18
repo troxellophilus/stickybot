@@ -10,7 +10,40 @@ On /r/Dodgers, we have a tradition of community members posting the daily discus
 
 Create a praw.ini with your reddit api credentials (follow PRAW's requirements). Use the bot name "stickybot".
 
-Create a configuration JSON file with rules for Sticky Bot.
+Create a configuration JSON file with a subreddit and rules for Sticky Bot. See Rule Attributes below for all attributes.
+
+```
+{
+    "subreddit": "subreddit_name",
+    "rules": [
+        {
+            "label": "Example",
+            "pattern": "daily[ -]discussion thread"
+        }
+    ]
+}
+```
+
+The provided Pipfile.lock can be used to retrieve stable dependencies for running StickyBot directly in Python.
+
+```
+$ pipenv install
+$ pipenv run python stickybot.py /path/to/config.json
+```
+
+## Rule Attributes
+
+The label and pattern attributes are required, but additional rule attributes are supported or defaulted for each rule.
+
+* label - Label for logging purposes (required).
+* pattern - RegEx pattern to match against submission titles (required).
+* min_score - Minimum total comment + vote score to be stickied (default 5).
+* min_karma - Minimum comment karma of submission author (default 50).
+* max_age_hrs - Maximum age of submission (default 0.5).
+* remove_age_hrs - Age at which a submission is unstickied (default 12).
+* comment - Comment to post when stickying a submission (default none).
+* sort_list - Ordered list of sorts to update through (default ['new', 'best']).
+* sort_update_age_hrs - Amount of time between sort updates (default 4).
 
 An example rules configuration from /r/Dodgers:
 ```json
@@ -18,37 +51,16 @@ An example rules configuration from /r/Dodgers:
     "subreddit": "Dodgers",
     "rules": [
         {
-            "label": "GDT/ODT",  # Label for logging purposes.
-            "pattern": "gdt|odt|game[ -]day thread|off[ -]day thread",  # RegEx pattern to match against submission titles.
-            "min_score": 5,  # Minimum total comment + vote score to be stickied.
-            "min_karma": 50,  # Minimum comment karma of submission author.
-            "max_age_hrs": 6,  # Maximum age of submission.
-            "remove_age_hrs": 12,  # Age at which a submission is unstickied.
-            "comment": "This submission was automatically stickied as a Game Day or Off-Day Thread.",  # Comment to post when stickying a submission.
-            "sort_list": ["new", "best"],  # List of sorts to move through sequentially.
-            "sort_update_age_hrs": 4  # Amount of time between sort updates.
+            "label": "GDT/ODT",
+            "pattern": "gdt|odt|game[ -]day thread|off[ -]day thread",
+            "min_score": 5,
+            "min_karma": 50,
+            "max_age_hrs": 6,
+            "remove_age_hrs": 12,
+            "comment": "This submission was automatically stickied as a Game Day or Off-Day Thread.",
+            "sort_list": ["new", "best"],
+            "sort_update_age_hrs": 4
         }
     ]
 }
-```
-
-Build the docker container.
-
-```bash
-$ docker build -t stickybot/latest .
-```
-
-Run the docker container with the configuration and authentication praw.ini files. In this example, the files 'praw.ini' and 'config.json' would be in the /path/to/workdir directory.
-
-```bash
-$ docker run -v "/path/to/workdir:/stickybot" stickybot/latest config.json
-```
-
-## Running Without Docker
-
-The provided Pipfile.lock can be used to retrieve stable dependencies for running StickyBot directly in Python.
-
-```
-$ pipenv install
-$ pipenv run python stickybot/stickybot.py /path/to/config.json
 ```
