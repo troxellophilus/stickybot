@@ -7,7 +7,6 @@ configurable patterns.
 import argparse
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
 import json
 import logging
 import os
@@ -26,7 +25,6 @@ def _hours_since(start):
     return float((datetime.utcnow() - start).total_seconds()) / 60 / 60
 
 
-@lru_cache()
 def get_stickies(subreddit):
     stickies = []
     try:
