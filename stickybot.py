@@ -7,6 +7,7 @@ configurable patterns.
 import argparse
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 import json
 import logging
 import os
@@ -25,6 +26,7 @@ def _hours_since(start):
     return float((datetime.utcnow() - start).total_seconds()) / 60 / 60
 
 
+@lru_cache()
 def get_stickies(subreddit):
     stickies = []
     try:
@@ -51,7 +53,8 @@ class Rule(object):
     comment: str = None
     sort_list: List[str] = ('new', 'best')
     sort_update_age_hrs: float = 4
-    flair_id: str = None
+    flair_text: str = None
+    flair_template_id: str = None
 
     def check(self, submission: praw.models.Submission):
         """Check if a submission should be handled by this Rule."""
@@ -82,6 +85,11 @@ class Rule(object):
         created = datetime.utcfromtimestamp(sticky.created_utc)
         hours_since_created = _hours_since(created)
 
+        if hours_since_created > self.remove_age_hrs:
+            logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
+            sticky.mod.sticky(False)
+            return True
+
         if self.sort_list:
             sort_idx = min(int(hours_since_created // self.sort_update_age_hrs), len(self.sort_list) - 1)
             current_sort = sticky.suggested_sort or sticky.comment_sort
@@ -91,13 +99,14 @@ class Rule(object):
                 logging.info(f"Setting suggested sort from '{current_sort}' to '{new_sort}' for sticky '{sticky.fullname}'.")
                 sticky.mod.suggested_sort(new_sort)
 
-            if self.flair_id and not sticky.link_flair_template_id:
-                sticky.flair.select(self.flair_id)
-
-        if hours_since_created > self.remove_age_hrs:
-            logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
-            sticky.mod.sticky(False)
-            return True
+        if not sticky.link_flair_text:
+            flair_template_ids = (d['flair_template_id'] for d in sticky.flair.choices())
+            if self.flair_template_id and self.flair_template_id in flair_template_ids:
+                logging.info(f"Setting flair to ID '{self.flair_template_id}' for sticky '{sticky.fullname}'.")
+                sticky.flair.select(self.flair_template_id, text=self.flair_text)
+            elif self.flair_text:
+                logging.info(f"Setting flair text to '{self.flair_text}' for sticky '{sticky.fullname}'.")
+                sticky.mod.flair(self.flair_text)
 
         return False
 
@@ -136,7 +145,7 @@ def main():
         logging.info(f"Executing rule '{rule.label}'...")
 
         # Check current stickies for existing sticky matching rule.
-        existing = filter(rule.check, stickies)
+        existing = list(filter(rule.check, stickies))
         if not all(map(rule.lifecycle, existing)):
             logging.info(f"Sticky already exists for rule '{rule.label}'.")
             continue
@@ -155,8 +164,12 @@ def main():
 
         best.mod.sticky()
         best.mod.suggested_sort(rule.sort_list[0])
-        if rule.flair_id:
-            best.flair.select(rule.flair_id)
+        if rule.flair_template_id and rule.flair_template_id in best.flair.choices():
+            logging.info(f"Setting flair to ID '{rule.flair_template_id}' for submission '{best.fullname}'.")
+            best.flair.select(rule.flair_template_id, text=rule.flair_text)
+        elif rule.flair_text:
+            logging.info(f"Setting flair text to '{rule.flair_text}' for submission '{best.fullname}'.")
+            best.mod.flair(rule.flair_text)
 
         # Post comment to the submission if specified.
         if rule.comment and not _get_comment(reddit, best):
