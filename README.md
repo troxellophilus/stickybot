@@ -12,7 +12,7 @@ Create a praw.ini with your reddit api credentials (follow PRAW's requirements).
 
 Create a configuration JSON file with a subreddit and rules for Sticky Bot. See Rule Attributes below for all attributes.
 
-```
+```json
 {
     "subreddit": "subreddit_name",
     "rules": [
@@ -26,9 +26,9 @@ Create a configuration JSON file with a subreddit and rules for Sticky Bot. See 
 
 The provided Pipfile.lock can be used to retrieve stable dependencies for running StickyBot directly in Python.
 
-```
-$ pipenv install
-$ pipenv run python stickybot.py /path/to/config.json
+```bash
+pipenv install
+pipenv run python stickybot.py /path/to/config.json
 ```
 
 ## Rule Attributes
