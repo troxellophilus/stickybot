@@ -51,6 +51,7 @@ class Rule(object):
     comment: str = None
     sort_list: List[str] = ('new', 'best')
     sort_update_age_hrs: float = 4
+    flair_id: str = None
 
     def check(self, submission: praw.models.Submission):
         """Check if a submission should be handled by this Rule."""
@@ -85,9 +86,13 @@ class Rule(object):
             sort_idx = min(int(hours_since_created // self.sort_update_age_hrs), len(self.sort_list) - 1)
             current_sort = sticky.suggested_sort or sticky.comment_sort
             new_sort = self.sort_list[sort_idx]
+
             if new_sort != current_sort:
                 logging.info(f"Setting suggested sort from '{current_sort}' to '{new_sort}' for sticky '{sticky.fullname}'.")
                 sticky.mod.suggested_sort(new_sort)
+
+            if self.flair_id and not sticky.link_flair_template_id:
+                sticky.flair.select(self.flair_id)
 
         if hours_since_created > self.remove_age_hrs:
             logging.info(f"Unstickying stale sticky '{sticky.fullname}'.")
@@ -150,6 +155,8 @@ def main():
 
         best.mod.sticky()
         best.mod.suggested_sort(rule.sort_list[0])
+        if rule.flair_id:
+            best.flair.select(rule.flair_id)
 
         # Post comment to the submission if specified.
         if rule.comment and not _get_comment(reddit, best):
