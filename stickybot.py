@@ -18,7 +18,7 @@ import prawcore.exceptions
 import requests
 
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 
 
 def _hours_since(start):
