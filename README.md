@@ -64,3 +64,9 @@ An example rules configuration from /r/Dodgers:
     ]
 }
 ```
+
+## Scopes
+
+**Required:** submit,modposts,modflair,read,identity,edit,history,flair
+
+**Optional:** privatemessages
