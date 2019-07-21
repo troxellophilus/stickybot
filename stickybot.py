@@ -71,9 +71,12 @@ class Rule(object):
         user_karma = submission.author.comment_karma
         if user_karma < self.min_karma:
             submission.mod.remove()
-            submission.subreddit.message("[StickyBot] User Comment Karma Below Threshold", f"[This submission]({submission.permalink}) is eligible for sticky according to rule '{self.label}' but the user's comment karma is below the rule's threshold of {self.min_karma}. Please approve and manually sticky the submission if it is permissible.")
-            comment = submission.reply("Your submission is pending moderator approval due to your comment karma being below the threshold for this type of submission. Message the moderators if you have any questions.")
-            comment.mod.distinguish()
+            try:
+                submission.subreddit.message("[StickyBot] User Comment Karma Below Threshold", f"[This submission]({submission.permalink}) is eligible for sticky according to rule '{self.label}' but the user's comment karma is below the rule's threshold of {self.min_karma}. Please approve and manually sticky the submission if it is permissible.")
+                comment = submission.reply("Your submission is pending moderator approval due to your comment karma being below the threshold for this type of submission. Message the moderators if you have any questions.")
+                comment.mod.distinguish()
+            except prawcore.exceptions.InsufficientScope:
+                logging.warn("Lacking scope to notify moderators of removed eligible sticky.")
             return False
 
         return True
